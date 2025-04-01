@@ -5,8 +5,8 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size, Clear, ClearT
 
 use std::io::{stdout, Write};
 
-use super::point::Point;
-use super::size::Size;
+use crate::types::point::Point;
+use crate::types::size::Size;
 
 pub struct Terminal {}
 

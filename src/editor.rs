@@ -4,8 +4,8 @@ use crossterm::event::KeyCode::{self, Char};
 use crossterm::event::{read, KeyEvent, KeyEventKind};
 use crossterm::terminal::ClearType;
 
-use crate::terminal::point::Point;
-use crate::terminal::size::Size;
+use crate::types::point::Point;
+use crate::types::size::Size;
 use crate::terminal::terminal::Terminal;
 
 const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");

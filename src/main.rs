@@ -1,5 +1,6 @@
 mod editor;
 mod terminal;
+mod types;
 use editor::Editor;
 
 fn main() {

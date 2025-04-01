@@ -1,12 +1,14 @@
 // event
+use core::cmp::min;
+
 use crossterm::event::Event::{self, Key};
 use crossterm::event::KeyCode::{self, Char};
 use crossterm::event::{read, KeyEvent, KeyEventKind};
 use crossterm::terminal::ClearType;
 
+use crate::terminal::terminal::Terminal;
 use crate::types::point::Point;
 use crate::types::size::Size;
-use crate::terminal::terminal::Terminal;
 
 const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 const NAME: &str = env!("CARGO_PKG_NAME");
@@ -15,7 +17,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Editor {
     should_quit: bool,
     should_clear_screen: bool,
-    cursor_pos: Point
+    cursor_pos: Point,
 }
 
 impl Editor {
@@ -70,8 +72,8 @@ impl Editor {
         let height = Terminal::size()?.height;
         for current_row in 0..height {
             Terminal::clear_screen(ClearType::CurrentLine)?;
-            Terminal::print(Point::new(0, current_row), "~")?; 
-            if current_row + 1 < height { 
+            Terminal::print(Point::new(0, current_row), "~")?;
+            if current_row + 1 < height {
                 Terminal::print(Point::new(0, current_row), "\r\n")?;
             }
         }
@@ -98,16 +100,19 @@ impl Editor {
 
     fn print_welcome(&mut self) -> Result<(), std::io::Error> {
         let message = format!("{}'s {} -- version {}", AUTHOR, NAME, VERSION);
-        let Size { 
-            width, 
-            height 
-        } = Terminal::size()?;
+        let Size { width, height } = Terminal::size()?;
         let len = message.len();
         let x_padding = (width - len) / 2;
         let y_padding = height / 2;
 
         Terminal::print(Point { x: 0, y: y_padding }, &" ".repeat(x_padding))?;
-        Terminal::print(Point { x: x_padding, y: y_padding }, &message)?;
+        Terminal::print(
+            Point {
+                x: x_padding,
+                y: y_padding,
+            },
+            &message,
+        )?;
         Terminal::execute()
     }
 
@@ -124,32 +129,30 @@ impl Editor {
 
     fn evaluate_event(&mut self, event: &KeyEvent) -> Result<(), std::io::Error> {
         match event {
-            KeyEvent { 
-                code, 
-                modifiers, 
+            KeyEvent {
+                code,
+                modifiers,
                 kind: KeyEventKind::Press,
                 ..
-            } => {
-                match code {
-                    KeyCode::Esc => {
-                        self.should_quit = true;
-                    }
-                    Char('`') => {
-                        self.should_clear_screen = true;
-                    }
-                    KeyCode::Up |
-                    KeyCode::Down |
-                    KeyCode::Left |
-                    KeyCode::Right |
-                    KeyCode::Home |
-                    KeyCode::End |
-                    KeyCode::PageUp |
-                    KeyCode::PageDown => {
-                        self.move_cursor_event(*code)?;
-                    }
-                    _ => { }
+            } => match code {
+                KeyCode::Esc => {
+                    self.should_quit = true;
                 }
-            }
+                Char('`') => {
+                    self.should_clear_screen = true;
+                }
+                KeyCode::Up
+                | KeyCode::Down
+                | KeyCode::Left
+                | KeyCode::Right
+                | KeyCode::PageDown
+                | KeyCode::PageUp
+                | KeyCode::End
+                | KeyCode::Home => {
+                    self.move_cursor_event(*code)?;
+                }
+                _ => {}
+            },
             _ => {}
         }
 
@@ -157,30 +160,38 @@ impl Editor {
     }
 
     fn move_cursor_event(&mut self, code: KeyCode) -> Result<(), std::io::Error> {
+        let (mut x, mut y) = (self.cursor_pos.x, self.cursor_pos.y);
+        let Size { height, width } = Terminal::size()?;
+
         match code {
             KeyCode::Up => {
-                if self.cursor_pos.y > 0 {
-                    self.cursor_pos.y -= 1;
-                }
+                y = y.saturating_sub(1);
             }
             KeyCode::Down => {
-                if self.cursor_pos.y < Terminal::size().unwrap().height - 1 {
-                    self.cursor_pos.y += 1;
-                }
+                y = min(height.saturating_sub(1), y.saturating_add(1));
             }
             KeyCode::Left => {
-                if self.cursor_pos.x > 0 {
-                    self.cursor_pos.x -= 1;
-                }
+                x = x.saturating_sub(1);
             }
             KeyCode::Right => {
-                if self.cursor_pos.x < Terminal::size().unwrap().width - 1 {
-                    self.cursor_pos.x += 1;
-                }
+                x = min(width.saturating_sub(1), x.saturating_add(1));
             }
-            _ => {}
+            KeyCode::PageUp => {
+                y = 0;
+            }
+            KeyCode::PageDown => {
+                y = height.saturating_sub(1);
+            }
+            KeyCode::Home => {
+                x = 0;
+            }
+            KeyCode::End => {
+                x = width.saturating_sub(1);
+            }
+            _ => (),
         }
 
+        self.cursor_pos = Point { x, y };
         self.move_cursor_to(self.cursor_pos)
     }
 }
